@@ -46,10 +46,16 @@ includeBuild("../jimmer-mapper-kt")
 Define a mapper interface annotated with `@JimmerMapper`. The processor matches source properties to target entity properties by name.
 
 ```kotlin
-@JimmerMapper
-interface UserMapper {
+data class CreateBookInput(
+    val title: String,
+    val isbn: String,
+    val pageCount: Int?,
+)
 
-    fun toNew(input: CreateUserInput): User
+@JimmerMapper
+interface BookMapper {
+
+    fun toNew(input: CreateBookInput): Book
 }
 ```
 
@@ -57,12 +63,12 @@ Generated:
 
 ```kotlin
 @ApplicationScoped
-class UserMapperImpl : UserMapper {
+class BookMapperImpl : BookMapper {
 
-    override fun toNew(input: CreateUserInput): User = User {
-        firstName = input.firstName
-        lastName = input.lastName
-        sex = input.sex
+    override fun toNew(input: CreateBookInput): Book = Book {
+        title = input.title
+        isbn = input.isbn
+        pageCount = input.pageCount
     }
 }
 ```
@@ -73,18 +79,18 @@ Parameters named `{entityProperty}Id` are automatically mapped to FK shorthand p
 
 ```kotlin
 @JimmerMapper
-interface ShopMapper {
+interface BookMapper {
 
-    fun toNew(name: String, cityId: UUID): Shop
+    fun toNew(title: String, authorId: UUID): Book
 }
 ```
 
 Generated:
 
 ```kotlin
-override fun toNew(name: String, cityId: UUID): Shop = Shop {
-    name = name
-    this.cityId = cityId
+override fun toNew(title: String, authorId: UUID): Book = Book {
+    this.title = title
+    this.authorId = authorId
 }
 ```
 
@@ -94,17 +100,18 @@ Use `@Base` to mark a parameter as the existing entity. The generated code uses 
 
 ```kotlin
 @JimmerMapper
-interface ItemMapper {
+interface BookMapper {
 
-    fun toUpdated(@Base existing: Item, price: Int): Item
+    fun toUpdated(@Base existing: Book, title: String, pageCount: Int): Book
 }
 ```
 
 Generated:
 
 ```kotlin
-override fun toUpdated(existing: Item, price: Int): Item = Item(existing) {
-    price = price
+override fun toUpdated(existing: Book, title: String, pageCount: Int): Book = Book(existing) {
+    this.title = title
+    this.pageCount = pageCount
 }
 ```
 
@@ -113,12 +120,17 @@ override fun toUpdated(existing: Item, price: Int): Item = Item(existing) {
 Override auto-matching with explicit source-to-target mapping:
 
 ```kotlin
-@JimmerMapper
-interface ProductMapper {
+data class ImportBookInput(
+    val bookTitle: String,
+    val cover: String?,
+)
 
-    @Mapping(source = "input.title", target = "name")
-    @Mapping(source = "input.imageKey", target = "avatarKey")
-    fun toNew(input: ProductInput): Product
+@JimmerMapper
+interface BookMapper {
+
+    @Mapping(source = "input.bookTitle", target = "title")
+    @Mapping(source = "input.cover", target = "avatarKey")
+    fun toNew(input: ImportBookInput): Book
 }
 ```
 
@@ -128,46 +140,43 @@ Skip specific target properties:
 
 ```kotlin
 @JimmerMapper
-interface RoomMapper {
+interface BookMapper {
 
-    @IgnoreMapping("members", "wishLists")
-    fun toNew(input: CreateRoomInput): Room
+    @IgnoreMapping("reviews", "ratings")
+    fun toNew(input: CreateBookInput): Book
 }
 ```
 
 ### Nested entity mapping
 
-When a target property is a `@ManyToOne` / `@OneToOne` Jimmer entity and the source has matching scalar fields (e.g. `en`, `ru`), the processor generates a nested Jimmer DSL block:
+When a target property is a `@ManyToOne` / `@OneToOne` Jimmer entity and the source has matching scalar fields, the processor generates a nested Jimmer DSL block:
 
 ```kotlin
-// Source
-data class LineEntry(
-    val en: String,
-    val ru: String,
-    val color: Color,
-    val stations: List<StationEntry>,
+// Target entity Book has: val publisher: Publisher (@ManyToOne)
+// Publisher has: val name: String, val country: String
+
+data class BookEntry(
+    val title: String,
+    val name: String,     // matches Publisher.name
+    val country: String,  // matches Publisher.country
 )
 
-// Target entity has: val localization: Localization (with en, ru fields)
-
 @JimmerMapper
-interface EntityMapper {
+interface BookMapper {
 
-    fun toNewSubwayLine(entry: LineEntry, cityId: UUID): SubwayLine
+    fun toNew(entry: BookEntry): Book
 }
 ```
 
 Generated:
 
 ```kotlin
-override fun toNewSubwayLine(entry: LineEntry, cityId: UUID): SubwayLine = SubwayLine {
-    color = entry.color
-    localization = Localization {
-        en = entry.en
-        ru = entry.ru
+override fun toNew(entry: BookEntry): Book = Book {
+    title = entry.title
+    publisher = Publisher {
+        name = entry.name
+        country = entry.country
     }
-    this.cityId = cityId
-    stations = entry.stations.map { toSubway(it) }
 }
 ```
 
@@ -176,17 +185,27 @@ override fun toNewSubwayLine(entry: LineEntry, cityId: UUID): SubwayLine = Subwa
 When a target has a `@OneToMany` list and the source has a matching collection, the processor looks for a sibling method in the same mapper interface that maps the element type:
 
 ```kotlin
+data class BookEntry(
+    val title: String,
+    val chapters: List<ChapterEntry>,
+)
+
+data class ChapterEntry(
+    val title: String,
+    val pageCount: Int,
+)
+
 @JimmerMapper
-interface EntityMapper {
+interface BookMapper {
 
-    fun toNewSubwayLine(entry: LineEntry, cityId: UUID): SubwayLine
+    fun toNew(entry: BookEntry): Book
 
-    // Sibling method — used automatically for stations mapping
-    fun toSubway(entry: StationEntry): Subway
+    // Sibling method — used automatically for chapters mapping
+    fun toChapter(entry: ChapterEntry): Chapter
 }
 ```
 
-The processor discovers `toSubway` and generates `stations = entry.stations.map { toSubway(it) }`.
+The processor discovers `toChapter` and generates `chapters = entry.chapters.map { toChapter(it) }`.
 
 ### Collection merge with @Base
 
@@ -194,18 +213,18 @@ When updating an entity, list parameters are merged with the existing collection
 
 ```kotlin
 @JimmerMapper
-interface EntityMapper {
+interface BookMapper {
 
-    fun toUpdated(@Base existing: SubwayLine, stations: List<Subway>): SubwayLine
+    fun toUpdated(@Base existing: Book, chapters: List<Chapter>): Book
 }
 ```
 
 Generated:
 
 ```kotlin
-override fun toUpdated(existing: SubwayLine, stations: List<Subway>): SubwayLine =
-    SubwayLine(existing) {
-        this.stations = existing.stations + stations
+override fun toUpdated(existing: Book, chapters: List<Chapter>): Book =
+    Book(existing) {
+        this.chapters = existing.chapters + chapters
     }
 ```
 
