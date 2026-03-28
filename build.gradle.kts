@@ -4,7 +4,7 @@ plugins {
 
 subprojects {
 	group = "com.github.sleepkqq.jimmer-mapper-kt"
-	version = "1.0.0"
+	version = findProperty("version") as String? ?: "0.0.0-SNAPSHOT"
 
 	apply(plugin = "org.jetbrains.kotlin.jvm")
 	apply(plugin = "maven-publish")

@@ -7,9 +7,10 @@ dependencies {
 	implementation(libs.ksp.api)
 	implementation(libs.kotlinpoet)
 	implementation(libs.kotlinpoet.ksp)
-	implementation(libs.jimmer.sql.kotlin)
-	implementation(libs.jakarta.inject.api)
-	implementation(libs.jakarta.cdi.api)
+	compileOnly(libs.jimmer.sql.kotlin)
+	compileOnly(libs.jakarta.inject.api)
+	compileOnly(libs.jakarta.cdi.api)
+	compileOnly(libs.spring.context)
 
 	testImplementation(libs.compile.testing.ksp)
 	testImplementation(libs.jimmer.sql.kotlin)

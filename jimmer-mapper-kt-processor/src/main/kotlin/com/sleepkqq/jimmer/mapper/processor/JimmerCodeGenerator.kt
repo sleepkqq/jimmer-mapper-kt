@@ -16,6 +16,7 @@ import com.squareup.kotlinpoet.asClassName
 import com.squareup.kotlinpoet.ksp.writeTo
 import jakarta.enterprise.context.ApplicationScoped
 import jakarta.inject.Singleton
+import org.springframework.stereotype.Component
 
 class JimmerCodeGenerator(
 	private val codeGenerator: CodeGenerator,
@@ -23,13 +24,13 @@ class JimmerCodeGenerator(
 ) {
 
 	fun generate(model: MapperModel) {
-		val cdiAnnotation = resolveCdiAnnotation()
+		val annotation = resolveFrameworkAnnotation()
 
 		val classBuilder = TypeSpec.classBuilder(model.implName)
 			.addSuperinterface(model.interfaceName)
 
-		if (cdiAnnotation != null) {
-			classBuilder.addAnnotation(AnnotationSpec.builder(cdiAnnotation).build())
+		if (annotation != null) {
+			classBuilder.addAnnotation(AnnotationSpec.builder(annotation).build())
 		}
 
 		model.methods.forEach { method ->
@@ -113,10 +114,14 @@ class JimmerCodeGenerator(
 		builder.endControlFlow()
 	}
 
-	private fun resolveCdiAnnotation(): ClassName? {
-		val option = options["jimmerMapper.cdiAnnotation"] ?: "applicationScoped"
-		return when (option) {
-			"applicationScoped" -> ApplicationScoped::class.asClassName()
+	private fun resolveFrameworkAnnotation(): ClassName? {
+		val framework = options["jimmerMapper.framework"]
+			?: options["jimmerMapper.cdiAnnotation"]  // backward compatibility
+			?: "quarkus"
+
+		return when (framework) {
+			"quarkus" -> ApplicationScoped::class.asClassName()
+			"spring" -> Component::class.asClassName()
 			"singleton" -> Singleton::class.asClassName()
 			"none" -> null
 			else -> ApplicationScoped::class.asClassName()
