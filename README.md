@@ -243,8 +243,9 @@ The processor automatically skips:
 | Option | Values | Default | Description |
 |---|---|---|---|
 | `jimmerMapper.framework` | `quarkus`, `spring`, `singleton`, `none` | `quarkus` | Framework annotation on generated classes |
+| `jimmerMapper.nativeImage` | `true`, `false` | `false` | Generate `reflect-config.json` for GraalVM native image |
 
-| Value | Generated annotation |
+| Framework | Generated annotation |
 |---|---|
 | `quarkus` | `@ApplicationScoped` (jakarta.enterprise.context) |
 | `spring` | `@Component` (org.springframework.stereotype) |
@@ -254,8 +255,11 @@ The processor automatically skips:
 ```kotlin
 ksp {
     arg("jimmerMapper.framework", "spring")
+    arg("jimmerMapper.nativeImage", "true")
 }
 ```
+
+When `nativeImage` is enabled, the processor generates `META-INF/native-image/com.sleepkqq/jimmer-mapper-kt/reflect-config.json` with all generated mapper classes registered for reflection.
 
 ## Requirements
 

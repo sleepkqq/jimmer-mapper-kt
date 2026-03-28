@@ -59,6 +59,7 @@ class JimmerMapperProcessor(
 
 	private val mappingResolver = MappingResolver(logger)
 	private val jimmerCodeGenerator = JimmerCodeGenerator(codeGenerator, options)
+	private val generatedClasses = mutableListOf<String>()
 
 	override fun process(resolver: Resolver): List<KSAnnotated> {
 		val symbols = resolver.getSymbolsWithAnnotation(JIMMER_MAPPER_ANNOTATION)
@@ -79,10 +80,20 @@ class JimmerMapperProcessor(
 			val model = buildMapperModel(classDecl)
 			if (model != null) {
 				jimmerCodeGenerator.generate(model)
+				generatedClasses += model.implName.canonicalName
 			}
 		}
 
 		return deferred
+	}
+
+	override fun finish() {
+		if (generatedClasses.isEmpty()) return
+
+		val nativeImageEnabled = options["jimmerMapper.nativeImage"]?.toBooleanStrictOrNull() == true
+		if (nativeImageEnabled) {
+			NativeImageConfigGenerator(codeGenerator).generate(generatedClasses)
+		}
 	}
 
 	private fun buildMapperModel(classDecl: KSClassDeclaration): MapperModel? {
