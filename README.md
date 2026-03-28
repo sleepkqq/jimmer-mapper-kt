@@ -242,11 +242,18 @@ The processor automatically skips:
 
 | Option | Values | Default | Description |
 |---|---|---|---|
-| `jimmerMapper.cdiAnnotation` | `applicationScoped`, `singleton`, `none` | `applicationScoped` | CDI annotation on generated classes |
+| `jimmerMapper.framework` | `quarkus`, `spring`, `singleton`, `none` | `quarkus` | Framework annotation on generated classes |
+
+| Value | Generated annotation |
+|---|---|
+| `quarkus` | `@ApplicationScoped` (jakarta.enterprise.context) |
+| `spring` | `@Component` (org.springframework.stereotype) |
+| `singleton` | `@Singleton` (jakarta.inject) |
+| `none` | No annotation |
 
 ```kotlin
 ksp {
-    arg("jimmerMapper.cdiAnnotation", "none")
+    arg("jimmerMapper.framework", "spring")
 }
 ```
 
