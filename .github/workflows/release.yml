@@ -24,6 +24,6 @@ jobs:
         run: ./gradlew build -Pversion=${GITHUB_REF_NAME#v}
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
