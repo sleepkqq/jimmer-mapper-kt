@@ -18,8 +18,7 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-
-      - uses: gradle/actions/setup-gradle@v4
+          cache: 'gradle'
 
       - name: Build & Test
         run: ./gradlew build -Pversion=${GITHUB_REF_NAME#v}
