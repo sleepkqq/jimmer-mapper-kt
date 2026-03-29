@@ -58,9 +58,9 @@ subprojects {
 							val depsNode = asNode().appendNode("dependencies")
 							configurations.getByName("implementation").allDependencies.forEach { dep ->
 								depsNode.appendNode("dependency").apply {
-									appendNode("groupId", if (dep is org.gradle.api.artifacts.ProjectDependency) project.group.toString() else dep.group)
+									appendNode("groupId", if (dep is ProjectDependency) project.group.toString() else dep.group)
 									appendNode("artifactId", dep.name)
-									appendNode("version", if (dep is org.gradle.api.artifacts.ProjectDependency) project.version.toString() else dep.version)
+									appendNode("version", if (dep is ProjectDependency) project.version.toString() else dep.version)
 									appendNode("scope", "compile")
 								}
 							}
