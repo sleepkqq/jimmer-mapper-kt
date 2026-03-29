@@ -121,7 +121,12 @@ class JimmerMapperProcessor(
 		}
 
 		val methods = abstractFunctions.mapNotNull { func ->
-			buildMethodModel(func, classDecl, siblingMethods.filter { it.name != func.simpleName.asString() })
+			val funcParamTypes = func.parameters.map {
+				it.type.resolve().declaration.qualifiedName?.asString() ?: ""
+			}
+			buildMethodModel(func, classDecl, siblingMethods.filter { sibling ->
+				sibling.name != func.simpleName.asString() || sibling.parameterTypes != funcParamTypes
+			})
 		}
 
 		if (methods.isEmpty()) {
