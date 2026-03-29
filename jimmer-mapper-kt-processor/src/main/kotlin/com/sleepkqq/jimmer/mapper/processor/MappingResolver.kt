@@ -91,10 +91,15 @@ class MappingResolver(private val logger: KSPLogger) {
 					param.name == prop.name || param.name == prop.name + "s"
 				}
 				if (matchingParam != null) {
+					val addExpression = resolveCollectionMergeExpression(
+						param = matchingParam,
+						prop = prop,
+						context = context,
+					)
 					return PropertyMapping.CollectionMerge(
 						targetProperty = prop.name,
 						baseExpression = "${context.baseParam.name}.${prop.name}",
-						addExpression = matchingParam.name,
+						addExpression = addExpression,
 					)
 				}
 			}
@@ -185,6 +190,24 @@ class MappingResolver(private val logger: KSPLogger) {
 			context.funcNode,
 		)
 		return null
+	}
+
+	private fun resolveCollectionMergeExpression(
+		param: SourceParam,
+		prop: EntityProperty,
+		context: ResolveContext,
+	): String {
+		val elementType = prop.collectionElementTypeName ?: return param.name
+
+		// Check if param is already the target type (List<Subway> -> List<Subway>)
+		val paramTypeStr = param.typeName.toString()
+		if (paramTypeStr.contains(elementType)) return param.name
+
+		// Look for sibling method that returns the element entity type
+		val elementMapper = context.siblingMethods.find { it.returnEntityType == elementType }
+			?: return param.name
+
+		return "${param.name}.map { ${elementMapper.name}(it) }"
 	}
 
 	private fun resolveCollectionMapping(
