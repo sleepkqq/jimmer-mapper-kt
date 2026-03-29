@@ -2,8 +2,7 @@ name: Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    tags: [ '*' ]
 
 jobs:
   release:
@@ -21,7 +20,7 @@ jobs:
           cache: 'gradle'
 
       - name: Build & Test
-        run: ./gradlew build -Pversion=${GITHUB_REF_NAME#v}
+        run: ./gradlew build -Pversion=${GITHUB_REF_NAME}
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
