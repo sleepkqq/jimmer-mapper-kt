@@ -3,7 +3,7 @@ plugins {
 }
 
 subprojects {
-	group = "com.github.sleepkqq.jimmer-mapper-kt"
+	group = "com.sleepkqq"
 	version = findProperty("version") as String? ?: "0.0.0-SNAPSHOT"
 
 	apply(plugin = "org.jetbrains.kotlin.jvm")
@@ -29,42 +29,27 @@ subprojects {
 		useJUnitPlatform()
 	}
 
-	afterEvaluate {
-		configure<PublishingExtension> {
-			publications {
-				create<MavenPublication>("maven") {
-					artifactId = project.name
+	configure<PublishingExtension> {
+		publications {
+			create<MavenPublication>("maven") {
+				from(components["java"])
 
-					artifact(tasks.named("jar"))
-					artifact(tasks.named("sourcesJar"))
+				artifactId = project.name
 
-					pom {
-						name.set(project.name)
-						description.set("KSP processor for generating Jimmer entity mappers")
+				pom {
+					name.set(project.name)
+					description.set("KSP processor for generating Jimmer entity mappers")
+					url.set("https://github.com/sleepkqq/jimmer-mapper-kt")
+
+					licenses {
+						license {
+							name.set("Apache License 2.0")
+							url.set("https://www.apache.org/licenses/LICENSE-2.0")
+						}
+					}
+
+					scm {
 						url.set("https://github.com/sleepkqq/jimmer-mapper-kt")
-
-						licenses {
-							license {
-								name.set("Apache License 2.0")
-								url.set("https://www.apache.org/licenses/LICENSE-2.0")
-							}
-						}
-
-						scm {
-							url.set("https://github.com/sleepkqq/jimmer-mapper-kt")
-						}
-
-						withXml {
-							val depsNode = asNode().appendNode("dependencies")
-							configurations.getByName("implementation").allDependencies.forEach { dep ->
-								depsNode.appendNode("dependency").apply {
-									appendNode("groupId", if (dep is ProjectDependency) project.group.toString() else dep.group)
-									appendNode("artifactId", dep.name)
-									appendNode("version", if (dep is ProjectDependency) project.version.toString() else dep.version)
-									appendNode("scope", "compile")
-								}
-							}
-						}
 					}
 				}
 			}
