@@ -85,22 +85,26 @@ class MappingResolver(private val logger: KSPLogger) {
 				return resolveCollectionMapping(prop, explicitForProp.first, context)
 			}
 
-			// Check for collection merge with @Base
+			// Check for collection with @Base
 			if (context.baseParam != null) {
 				val matchingParam = context.sourceParams.find { param ->
 					param.name == prop.name || param.name == prop.name + "s"
 				}
 				if (matchingParam != null) {
-					val addExpression = resolveCollectionMergeExpression(
-						param = matchingParam,
-						prop = prop,
-						context = context,
-					)
-					return PropertyMapping.CollectionMerge(
-						targetProperty = prop.name,
-						baseExpression = "${context.baseParam.name}.${prop.name}",
-						addExpression = addExpression,
-					)
+					if (context.baseParam.mergeCollections) {
+						val addExpression = resolveCollectionMergeExpression(
+							param = matchingParam,
+							prop = prop,
+							context = context,
+						)
+						return PropertyMapping.CollectionMerge(
+							targetProperty = prop.name,
+							baseExpression = "${context.baseParam.name}.${prop.name}",
+							addExpression = addExpression,
+						)
+					} else {
+						return resolveCollectionMapping(prop, matchingParam.name, context)
+					}
 				}
 			}
 			return null

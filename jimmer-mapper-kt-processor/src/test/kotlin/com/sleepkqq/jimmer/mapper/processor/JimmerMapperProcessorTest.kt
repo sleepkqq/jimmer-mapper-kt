@@ -128,6 +128,34 @@ class JimmerMapperProcessorTest {
 	}
 
 	@Test
+	fun `base without mergeCollections generates only new elements`() {
+		val result = compile(
+			"Localization.kt", "City.kt", "Subway.kt", "SubwayLine.kt",
+			"LineEntry.kt", "SubwayLineMapper.kt",
+		)
+
+		val generated = result.generatedSources["SubwayLineMapperImpl.kt"]
+		assertTrue(generated != null, "SubwayLineMapperImpl.kt should be generated. Messages: ${result.messages}")
+		// toUpdated should have only new elements, toMerged should have merge
+		val toUpdated = generated!!.substringAfter("fun toUpdated").substringBefore("fun toMerged")
+		assertTrue(toUpdated.contains("stations = stations.map { toSubway(it) }"), "Should map only new stations in toUpdated. Generated:\n$generated")
+		assertTrue(!toUpdated.contains("existing.stations"), "Should NOT merge with existing in toUpdated. Generated:\n$generated")
+	}
+
+	@Test
+	fun `base with mergeCollections true generates merged elements`() {
+		val result = compile(
+			"Localization.kt", "City.kt", "Subway.kt", "SubwayLine.kt",
+			"LineEntry.kt", "SubwayLineMapper.kt",
+		)
+
+		val generated = result.generatedSources["SubwayLineMapperImpl.kt"]
+		assertTrue(generated != null, "SubwayLineMapperImpl.kt should be generated. Messages: ${result.messages}")
+		// toMerged should have existing.stations +
+		assertTrue(generated!!.contains("existing.stations + stations.map { toSubway(it) }"), "Should merge with existing in toMerged. Generated:\n$generated")
+	}
+
+	@Test
 	fun `nested entity in element mapper generates correct DSL`() {
 		val result = compile(
 			"Localization.kt", "City.kt", "Subway.kt", "SubwayLine.kt",

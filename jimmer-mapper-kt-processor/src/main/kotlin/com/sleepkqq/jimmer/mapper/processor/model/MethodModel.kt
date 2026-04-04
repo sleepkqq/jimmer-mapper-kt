@@ -15,6 +15,7 @@ data class MethodModel(
 data class BaseParam(
 	val name: String,
 	val typeName: TypeName,
+	val mergeCollections: Boolean,
 )
 
 data class SourceParam(
