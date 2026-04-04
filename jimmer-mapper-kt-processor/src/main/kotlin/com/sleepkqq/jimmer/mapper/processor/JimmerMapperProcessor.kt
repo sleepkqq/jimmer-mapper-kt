@@ -124,13 +124,16 @@ class JimmerMapperProcessor(
 			val funcParamTypes = func.parameters.map {
 				it.type.resolve().declaration.qualifiedName?.asString() ?: ""
 			}
-			buildMethodModel(func, classDecl, siblingMethods.filter { sibling ->
+			buildMethodModel(func, siblingMethods.filter { sibling ->
 				sibling.name != func.simpleName.asString() || sibling.parameterTypes != funcParamTypes
 			})
 		}
 
 		if (methods.isEmpty()) {
-			logger.warn("@JimmerMapper interface ${classDecl.simpleName.asString()} has no abstract methods", classDecl)
+			logger.warn(
+				"@JimmerMapper interface ${classDecl.simpleName.asString()} has no abstract methods",
+				classDecl
+			)
 			return null
 		}
 
@@ -144,7 +147,6 @@ class JimmerMapperProcessor(
 
 	private fun buildMethodModel(
 		func: KSFunctionDeclaration,
-		classDecl: KSClassDeclaration,
 		siblingMethods: List<MappingResolver.SiblingMethod>,
 	): MethodModel? {
 		val returnType = func.returnType?.resolve() ?: run {
@@ -207,7 +209,7 @@ class JimmerMapperProcessor(
 		fun collectFrom(decl: KSClassDeclaration, isMappedSuperclass: Boolean) {
 			decl.getAllProperties().forEach { prop ->
 				val fromMappedSuperclass = isMappedSuperclass ||
-					(prop.parentDeclaration as? KSClassDeclaration)?.hasAnnotation(JIMMER_MAPPED_SUPERCLASS) == true
+						(prop.parentDeclaration as? KSClassDeclaration)?.hasAnnotation(JIMMER_MAPPED_SUPERCLASS) == true
 
 				val propType = prop.type.resolve()
 				val elementTypeName = propType.arguments.firstOrNull()
@@ -245,10 +247,18 @@ class JimmerMapperProcessor(
 			logger.error("Only one @Base parameter is allowed", func)
 			return null
 		}
-		return baseParams.firstOrNull()?.let {
+		return baseParams.firstOrNull()?.let { param ->
+			val baseAnnotation = param.annotations.first {
+				it.annotationType.resolve().declaration.qualifiedName?.asString() == BASE_ANNOTATION
+			}
+			val mergeCollections = baseAnnotation.arguments
+				.find { it.name?.asString() == "mergeCollections" }
+				?.value as? Boolean ?: false
+
 			BaseParam(
-				name = it.name?.asString() ?: "base",
-				typeName = it.type.toTypeName(),
+				name = param.name?.asString() ?: "base",
+				typeName = param.type.toTypeName(),
+				mergeCollections = mergeCollections,
 			)
 		}
 	}

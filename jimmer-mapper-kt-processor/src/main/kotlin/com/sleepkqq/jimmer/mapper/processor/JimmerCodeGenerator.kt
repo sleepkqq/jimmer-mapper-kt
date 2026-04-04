@@ -42,7 +42,7 @@ class JimmerCodeGenerator(
 			.build()
 
 		val deps = if (model.originatingFile != null) {
-			Dependencies(aggregating = false, model.originatingFile!!)
+			Dependencies(aggregating = false, model.originatingFile)
 		} else {
 			Dependencies(aggregating = false)
 		}
@@ -92,13 +92,15 @@ class JimmerCodeGenerator(
 				is PropertyMapping.NestedEntity ->
 					generateNestedEntity(builder, mapping)
 
-				is PropertyMapping.CollectionElementMapping ->
+				is PropertyMapping.CollectionElementMapping -> {
+					val prefix = if (mapping.targetProperty == mapping.sourceExpression) "this." else ""
 					builder.addStatement(
-						"%N = %L.map { %N(it) }",
+						"${prefix}%N = %L.map { %N(it) }",
 						mapping.targetProperty,
 						mapping.sourceExpression,
 						mapping.elementMapperMethod,
 					)
+				}
 			}
 		}
 
