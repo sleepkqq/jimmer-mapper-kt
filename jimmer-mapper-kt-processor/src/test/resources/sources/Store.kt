@@ -6,11 +6,11 @@ import org.babyfish.jimmer.sql.meta.UUIDIdGenerator
 import java.util.UUID
 
 @Entity
-interface Shop {
+interface Store {
 	@Id
 	@GeneratedValue(generatorType = UUIDIdGenerator::class)
 	val id: UUID
 	val name: String
 	@ManyToOne
-	val city: City
+	val region: Region
 }

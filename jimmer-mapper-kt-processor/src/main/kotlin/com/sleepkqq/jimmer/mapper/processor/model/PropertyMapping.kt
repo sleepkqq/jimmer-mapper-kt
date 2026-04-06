@@ -26,6 +26,7 @@ sealed class PropertyMapping {
 		override val targetProperty: String,
 		val entityClassName: ClassName,
 		val nestedMappings: List<Pair<String, String>>,
+		val baseParamName: String? = null,
 	) : PropertyMapping()
 
 	data class CollectionElementMapping(
