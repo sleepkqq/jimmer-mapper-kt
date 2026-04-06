@@ -5,9 +5,10 @@ import org.babyfish.jimmer.sql.meta.UUIDIdGenerator
 import java.util.UUID
 
 @Entity
-interface City {
+interface Label {
 	@Id
 	@GeneratedValue(generatorType = UUIDIdGenerator::class)
 	val id: UUID
-	val name: String
+	val en: String
+	val ru: String
 }

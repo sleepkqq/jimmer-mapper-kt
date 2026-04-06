@@ -45,7 +45,6 @@ class JimmerMapperProcessorTest {
 			.filter { it.isFile && it.extension == "kt" }
 			.associate { it.name to it.readText() }
 
-		// KSP resources can be in kspSourcesDir or sibling resources dir
 		val kspRoot = compilation.kspSourcesDir.parentFile
 		val resources = kspRoot.walkTopDown()
 			.filter { it.isFile && !it.extension.equals("kt", ignoreCase = true) }
@@ -53,6 +52,11 @@ class JimmerMapperProcessorTest {
 
 		return CompileResult(result.exitCode, result.messages, generated, resources)
 	}
+
+	private fun compileTeamMapper(): CompileResult = compile(
+		"Label.kt", "Region.kt", "Member.kt", "Team.kt",
+		"TeamEntry.kt", "TeamMapper.kt",
+	)
 
 	@Test
 	fun `simple new entity mapping generates correct DSL`() {
@@ -66,12 +70,12 @@ class JimmerMapperProcessorTest {
 	}
 
 	@Test
-	fun `FK pattern generates cityId assignment`() {
-		val result = compile("City.kt", "Shop.kt", "ShopMapper.kt")
+	fun `FK pattern generates regionId assignment`() {
+		val result = compile("Region.kt", "Store.kt", "StoreMapper.kt")
 
-		val generated = result.generatedSources["ShopMapperImpl.kt"]
-		assertTrue(generated != null, "ShopMapperImpl.kt should be generated. Messages: ${result.messages}")
-		assertTrue(generated!!.contains("this.cityId = cityId"), "Should generate FK assignment. Generated:\n$generated")
+		val generated = result.generatedSources["StoreMapperImpl.kt"]
+		assertTrue(generated != null, "StoreMapperImpl.kt should be generated. Messages: ${result.messages}")
+		assertTrue(generated!!.contains("this.regionId = regionId"), "Should generate FK assignment. Generated:\n$generated")
 		assertTrue(generated.contains("name = name"), "Should map name. Generated:\n$generated")
 	}
 
@@ -97,75 +101,122 @@ class JimmerMapperProcessorTest {
 
 	@Test
 	fun `nested entity mapping generates Jimmer DSL block`() {
-		val result = compile(
-			"Localization.kt", "City.kt", "Subway.kt", "SubwayLine.kt",
-			"LineEntry.kt", "SubwayLineMapper.kt",
-		)
+		val result = compileTeamMapper()
 
-		val generated = result.generatedSources["SubwayLineMapperImpl.kt"]
-		assertTrue(generated != null, "SubwayLineMapperImpl.kt should be generated. Messages: ${result.messages}")
-		// Nested localization block
-		assertTrue(generated!!.contains("localization = Localization"), "Should generate nested Localization. Generated:\n$generated")
+		val generated = result.generatedSources["TeamMapperImpl.kt"]
+		assertTrue(generated != null, "TeamMapperImpl.kt should be generated. Messages: ${result.messages}")
+		assertTrue(generated!!.contains("label = Label"), "Should generate nested Label. Generated:\n$generated")
 		assertTrue(generated.contains("en = entry.en"), "Should map en inside nested. Generated:\n$generated")
 		assertTrue(generated.contains("ru = entry.ru"), "Should map ru inside nested. Generated:\n$generated")
-		// FK pattern for city
-		assertTrue(generated.contains("this.cityId = cityId"), "Should generate FK for city. Generated:\n$generated")
-		// Direct color mapping
+		assertTrue(generated.contains("this.regionId = regionId"), "Should generate FK for region. Generated:\n$generated")
 		assertTrue(generated.contains("color = entry.color"), "Should map color. Generated:\n$generated")
 	}
 
 	@Test
 	fun `collection element auto-discovery maps via sibling method`() {
-		val result = compile(
-			"Localization.kt", "City.kt", "Subway.kt", "SubwayLine.kt",
-			"LineEntry.kt", "SubwayLineMapper.kt",
-		)
+		val result = compileTeamMapper()
 
-		val generated = result.generatedSources["SubwayLineMapperImpl.kt"]
-		assertTrue(generated != null, "SubwayLineMapperImpl.kt should be generated. Messages: ${result.messages}")
-		// stations mapped via toSubway sibling method
-		assertTrue(generated!!.contains("stations = entry.stations.map { toSubway(it) }"), "Should use element mapper. Generated:\n$generated")
+		val generated = result.generatedSources["TeamMapperImpl.kt"]!!
+		assertTrue(generated.contains("members = entry.members.map { toMember(it) }"), "Should use element mapper. Generated:\n$generated")
 	}
 
 	@Test
 	fun `base without mergeCollections generates only new elements`() {
-		val result = compile(
-			"Localization.kt", "City.kt", "Subway.kt", "SubwayLine.kt",
-			"LineEntry.kt", "SubwayLineMapper.kt",
-		)
+		val result = compileTeamMapper()
 
-		val generated = result.generatedSources["SubwayLineMapperImpl.kt"]
-		assertTrue(generated != null, "SubwayLineMapperImpl.kt should be generated. Messages: ${result.messages}")
-		// toUpdated should have only new elements, toMerged should have merge
-		val toUpdated = generated!!.substringAfter("fun toUpdated").substringBefore("fun toMerged")
-		assertTrue(toUpdated.contains("stations = stations.map { toSubway(it) }"), "Should map only new stations in toUpdated. Generated:\n$generated")
-		assertTrue(!toUpdated.contains("existing.stations"), "Should NOT merge with existing in toUpdated. Generated:\n$generated")
+		val generated = result.generatedSources["TeamMapperImpl.kt"]!!
+		val toUpdated = generated.substringAfter("fun toUpdated").substringBefore("fun toMerged")
+		assertTrue(toUpdated.contains("members = members.map { toMember(it) }"), "Should map only new members in toUpdated. Generated:\n$generated")
+		assertTrue(!toUpdated.contains("existing.members"), "Should NOT merge with existing in toUpdated. Generated:\n$generated")
 	}
 
 	@Test
 	fun `base with mergeCollections true generates merged elements`() {
-		val result = compile(
-			"Localization.kt", "City.kt", "Subway.kt", "SubwayLine.kt",
-			"LineEntry.kt", "SubwayLineMapper.kt",
+		val result = compileTeamMapper()
+
+		val generated = result.generatedSources["TeamMapperImpl.kt"]!!
+		assertTrue(generated.contains("existing.members + members.map { toMember(it) }"), "Should merge with existing in toMerged. Generated:\n$generated")
+	}
+
+	@Test
+	fun `base with nested entity preserves existing child via copy DSL`() {
+		val result = compileTeamMapper()
+
+		val generated = result.generatedSources["TeamMapperImpl.kt"]!!
+
+		// toBaseUpdated: @Base + nested label → copy DSL
+		val toBaseUpdated = generated.substringAfter("fun toBaseUpdated").substringBefore("\n  override fun")
+		assertTrue(
+			toBaseUpdated.contains("label = Label(existing.label)"),
+			"@Base + nested mapping should use copy DSL. toBaseUpdated:\n$toBaseUpdated",
+		)
+		assertTrue(
+			toBaseUpdated.contains("en = entry.en"),
+			"Should override en inside copy DSL. toBaseUpdated:\n$toBaseUpdated",
+		)
+		assertTrue(
+			toBaseUpdated.contains("ru = entry.ru"),
+			"Should override ru inside copy DSL. toBaseUpdated:\n$toBaseUpdated",
 		)
 
-		val generated = result.generatedSources["SubwayLineMapperImpl.kt"]
-		assertTrue(generated != null, "SubwayLineMapperImpl.kt should be generated. Messages: ${result.messages}")
-		// toMerged should have existing.stations +
-		assertTrue(generated!!.contains("existing.stations + stations.map { toSubway(it) }"), "Should merge with existing in toMerged. Generated:\n$generated")
+		// toNew: NO @Base → plain Label (no copy DSL)
+		val toNew = generated.substringAfter("fun toNew").substringBefore("\n  override fun")
+		assertTrue(
+			toNew.contains("label = Label {"),
+			"Non-@Base should use plain DSL. toNew:\n$toNew",
+		)
+		assertTrue(
+			!toNew.contains("existing.label"),
+			"Non-@Base should NOT reference existing. toNew:\n$toNew",
+		)
+
+		// toUpdated: @Base but NO nested label mapping → no label override at all
+		val toUpdated = generated.substringAfter("fun toUpdated").substringBefore("\n  override fun")
+		assertTrue(
+			!toUpdated.contains("label"),
+			"@Base without nested mapping should NOT override label. toUpdated:\n$toUpdated",
+		)
+
+		// toMember: NO @Base, has nested label → plain DSL
+		val toMember = generated.substringAfter("fun toMember")
+		assertTrue(
+			toMember.contains("label = Label {"),
+			"toMember (no @Base) should use plain DSL. toMember:\n$toMember",
+		)
+	}
+
+	@Test
+	fun `base with multiple nested entities uses copy DSL for each`() {
+		val result = compileTeamMapper()
+
+		val generated = result.generatedSources["TeamMapperImpl.kt"]!!
+
+		// toMultiNestedNew: no @Base → both label and region use plain DSL
+		val toNew = generated.substringAfter("fun toMultiNestedNew").substringBefore("\n  override fun")
+		assertTrue(toNew.contains("label = Label {"), "toMultiNestedNew should use plain Label DSL. toNew:\n$toNew")
+		assertTrue(toNew.contains("region = Region {"), "toMultiNestedNew should use plain Region DSL. toNew:\n$toNew")
+		assertTrue(!toNew.contains("existing"), "toMultiNestedNew should NOT reference existing. toNew:\n$toNew")
+
+		// toMultiNestedUpdate: @Base → both label and region use copy DSL
+		val toUpdate = generated.substringAfter("fun toMultiNestedUpdate").substringBefore("\n  override fun")
+		assertTrue(toUpdate.contains("label = Label(existing.label)"), "Should use copy DSL for Label. toUpdate:\n$toUpdate")
+		assertTrue(toUpdate.contains("region = Region(existing.region)"), "Should use copy DSL for Region. toUpdate:\n$toUpdate")
+		assertTrue(toUpdate.contains("en = entry.en"), "Should map en inside Label copy. toUpdate:\n$toUpdate")
+		assertTrue(toUpdate.contains("name = regionName"), "Should map name inside Region copy. toUpdate:\n$toUpdate")
+
+		// toPartialNestedUpdate: @Base, only label mapped → label uses copy DSL, region NOT overridden
+		val toPartial = generated.substringAfter("fun toPartialNestedUpdate").substringBefore("\n  override fun")
+		assertTrue(toPartial.contains("label = Label(existing.label)"), "Should use copy DSL for Label. toPartial:\n$toPartial")
+		assertTrue(!toPartial.contains("region"), "Should NOT override region (inherited from @Base). toPartial:\n$toPartial")
 	}
 
 	@Test
 	fun `nested entity in element mapper generates correct DSL`() {
-		val result = compile(
-			"Localization.kt", "City.kt", "Subway.kt", "SubwayLine.kt",
-			"LineEntry.kt", "SubwayLineMapper.kt",
-		)
+		val result = compileTeamMapper()
 
-		val generated = result.generatedSources["SubwayLineMapperImpl.kt"]
-		assertTrue(generated != null, "SubwayLineMapperImpl.kt should be generated. Messages: ${result.messages}")
-		// toSubway method should have nested localization
-		assertTrue(generated!!.contains("fun toSubway(entry: StationEntry): Subway"), "Should generate toSubway method. Generated:\n$generated")
+		val generated = result.generatedSources["TeamMapperImpl.kt"]
+		assertTrue(generated != null, "TeamMapperImpl.kt should be generated. Messages: ${result.messages}")
+		assertTrue(generated!!.contains("fun toMember(entry: MemberEntry): Member"), "Should generate toMember method. Generated:\n$generated")
 	}
 
 	@Test

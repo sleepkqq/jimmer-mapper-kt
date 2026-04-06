@@ -45,6 +45,7 @@ class MappingResolver(private val logger: KSPLogger) {
 				targetProperty = targetProp,
 				entityClassName = entityClassName,
 				nestedMappings = mappings.map { it.first to it.second.substringAfter(".") },
+				baseParamName = context.baseParam?.name,
 			)
 		}
 
@@ -203,9 +204,9 @@ class MappingResolver(private val logger: KSPLogger) {
 	): String {
 		val elementType = prop.collectionElementTypeName ?: return param.name
 
-		// Check if param is already the target type (List<Subway> -> List<Subway>)
+		// Check if param is already the target type (List<Member> -> List<Member>)
 		val paramTypeStr = param.typeName.toString()
-		if (paramTypeStr.contains(elementType)) return param.name
+		if ("<$elementType>" in paramTypeStr) return param.name
 
 		// Look for sibling method that returns the element entity type
 		val elementMapper = context.siblingMethods.find { it.returnEntityType == elementType }

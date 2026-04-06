@@ -1,11 +1,11 @@
-data class StationEntry(
+data class MemberEntry(
 	val en: String,
 	val ru: String,
 )
 
-data class LineEntry(
+data class TeamEntry(
 	val en: String,
 	val ru: String,
 	val color: String,
-	val stations: List<StationEntry>,
+	val members: List<MemberEntry>,
 )

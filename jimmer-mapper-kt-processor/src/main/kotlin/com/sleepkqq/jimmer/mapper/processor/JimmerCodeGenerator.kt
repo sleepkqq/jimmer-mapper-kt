@@ -109,7 +109,17 @@ class JimmerCodeGenerator(
 	}
 
 	private fun generateNestedEntity(builder: CodeBlock.Builder, mapping: PropertyMapping.NestedEntity) {
-		builder.beginControlFlow("%N = %T", mapping.targetProperty, mapping.entityClassName)
+		if (mapping.baseParamName != null) {
+			builder.beginControlFlow(
+				"%N = %T(%N.%N)",
+				mapping.targetProperty,
+				mapping.entityClassName,
+				mapping.baseParamName,
+				mapping.targetProperty,
+			)
+		} else {
+			builder.beginControlFlow("%N = %T", mapping.targetProperty, mapping.entityClassName)
+		}
 		mapping.nestedMappings.forEach { (source, target) ->
 			builder.addStatement("%N = %L", target, source)
 		}
